@@ -114,7 +114,15 @@ Substeps:
     - 443 (https)
    ![](Step4_5.png)
 
-## Basic Optimisation Checks
+## Other Things To Look Out For
+Some other things to check for if the guide isn't working:
+ - Ensure the modem is using sim slot 1
+    - `AT+QUIMSLOT?` should output a 1
+    - slot 1 is for physical sims, slot 2 is for esim?
+ - Ensure sim pin detection is disabled
+    - `AT+QSIMDET?` will output a 2 number tuple. First number should be 0.
+
+## Basic Checks
  - Check usbspeed
     - AT+QCFG="usbspeed"
  - Check data protocol
@@ -161,6 +169,26 @@ Repos/packages:
     - luci-app-3ginfo
  - https://github.com/4IceG/luci-app-atcommands
     - luci-app-atcommands
+
+## Updating Modem Firmware
+Firmware can be updated through Quectel's QFirehose utility.
+
+If you have a USB to m.2 NGFF adapter, then you have the easy option of connecting the modem into the adapter and plugging the adapter into a proper computer.
+
+### Updating Directly From BPIR4
+I used the BPiR4 to perform the firmware update.
+
+At time of writing, the [opkg qfirehose](https://openwrt.pkgs.org/23.05/openwrt-packages-aarch64_cortex-a72/qfirehose_1.4.9-1_aarch64_cortex-a72.ipk.html) has not been updated to OpenWRT 24.x so most of this procedure has to be done through the terminal.
+
+The general procedure is to:
+1. Download a qfirehose zip onto the bpi
+2. Unzip and grant executible permissions with `chmod 775`
+3. Download latest firmware for RM520N
+4. Execute QFirehose and tell it to use the firmware downloaded in step 3
+
+See method 2 of this [guide](https://docs.gl-inet.com/router/en/4/tutorials/upgrade_quectel_module_software/) for more details.
+
+See [4IceG's repo](https://github.com/4IceG/RM520N-GL) for the latest firmware.
 
 ## A Sour Note on RM520N-GLAP
 If step 1 of the guide seems to not work, you may have ended up purchasing a **RM520N-GLAP** instead of the **RM520N-GLAA**.
