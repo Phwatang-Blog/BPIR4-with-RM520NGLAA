@@ -124,16 +124,16 @@ Some other things to check for if the guide isn't working:
 
 ## Basic Checks
  - Check usbspeed
-    - AT+QCFG="usbspeed"
+    - `AT+QCFG="usbspeed"`
  - Check data protocol
-    - AT+QCFG="usbnet"
+    - `AT+QCFG="usbnet"`
  - Check sleep mode
-    - AT+QSCLK?
+    - `AT+QSCLK?`
  - Check band information
-    - AT+QENG="servingcell"
-    - AT+QNWCFG=?
-    - AT+QNWPREFCFG="lte_band"
-    - AT+QNWPREFCFG="nsa_nr5g_band"
+    - `AT+QENG="servingcell"`
+    - `AT+QNWCFG=?`
+    - `AT+QNWPREFCFG="lte_band"`
+    - `AT+QNWPREFCFG="nsa_nr5g_band"`
 
 ## AT Commands Not In Manual
 There are many AT commands not specified in the manual.
@@ -228,7 +228,7 @@ Incase anyone finds this helpful, here were my findings:
    ![](GFriend%20AT%20command.PNG)
 
  - Ensure to disable sim pin detection on the modem
-    - AT+QSIMDET=0,0
+    - `AT+QSIMDET=0,0`
 
 From these I was able to get a `wwan0mbim0`, `wwan0qcdm0` and `wwan0qmi0` to appear in the output of `ls /dev/`.
 
