@@ -122,6 +122,15 @@ Some other things to check for if the guide isn't working:
  - Ensure sim pin detection is disabled
     - `AT+QSIMDET?` will output a 2 number tuple. First number should be 0.
 
+## SIM Not Detected
+If everything is going well then the SIM1 LED on the BPiR4 should be lit up blue and OpenWRT should have no problem detecting the SIM card.
+
+After swapping around SIM cards I've found it is very easy for the BPiR4 to not power up the SIM1 slot (i.e the LED stays off).
+
+My solution is to do a proper cold boot of the device.
+ - Completely unplug it from power. Wait a few seconds and plug it back in.
+ - Doing a software reboot (from OpenWRT) doesn't seem to have the same effect
+
 ## Basic Checks
  - Check usbspeed
     - `AT+QCFG="usbspeed"`
@@ -139,9 +148,82 @@ Some other things to check for if the guide isn't working:
 There are many AT commands not specified in the manual.
 
 Some useful hidden commands are given by the AT command: `AT+QNWCFG=?`.
- - The commands `AT+QNWCFG: "nr5g_pref_freq_list",(0-32),<EARFCN_list>
-` and `AT+QNWCFG: "lte_pref_freq_list",(0-32),<EARFCN_list>` allow for specifying a band priority hierachy
-    - Upon further testing, these commands appear to do nothing when applied. I.e querying the frequency list before and after modifications gives no change
+ - Output
+   ```
+   +QNWCFG: "lte_cdrx",(0,1),(0,1)
+   +QNWCFG: "nr5g_cdrx",(0,1)
+   +QNWCFG: "csi_ctrl",(0,1),(0,1)
+   +QNWCFG: "lte_csi"
+   +QNWCFG: "nr5g_csi"
+   +QNWCFG: "lte_cell_id"
+   +QNWCFG: "nr5g_cell_id"
+   +QNWCFG: "lte_csi_ext",(0,1)
+   +QNWCFG: "nr5g_csi_ext",(0,1)
+   +QNWCFG: "lte_tx_pwr",(0,1)
+   +QNWCFG: "nr5g_tx_pwr",(0,1)
+   +QNWCFG: "wcdma_cqi"
+   +QNWCFG: "up/down",(1-60)
+   +QNWCFG: "data_path",(0,1)
+   +QNWCFG: "dss_enable",(0,1)
+   +QNWCFG: "lte_dl_tx_mode"
+   +QNWCFG: "nr5g_ulMCS",(0,1)
+   +QNWCFG: "nr5g_dlMCS",(0,1)
+   +QNWCFG: "nr5g_pusch_data",(0,1)
+   +QNWCFG: "lapi",(0,1)
+   +QNWCFG: "nr5g_meas_info",(0,1)
+   +QNWCFG: "lte_time_advance",(0,1)
+   +QNWCFG: "nr5g_time_advance",(0,1)
+   +QNWCFG: "clr_rplmn"
+   +QNWCFG: "dis_rplmnact",(0,1)
+   +QNWCFG: "lte_ambr"
+   +QNWCFG: "nr5g_ambr"
+   +QNWCFG: "disable_lte_ca",(0,1)
+   +QNWCFG: "disable_nr_ca",(0,1)
+   +QNWCFG: "dis_4mimo_enable",(0,1)
+   +QNWCFG: "nr5g_4mimo_enable",(0,1)
+   +QNWCFG: "nr5g_ulTBsize",(0,1),(1-100)
+   +QNWCFG: "encryp_alg_support"
+   +QNWCFG: "integ_alg_support"
+   +QNWCFG: "data_roaming",(0,1)
+   +QNWCFG: "nr5g_earfcn_lock",(0-32),<EARFCN_list>
+   +QNWCFG: "lte_earfcn_lock",(0-2),<EARFCN_list>
+   +QNWCFG: "event_a3_offset",(0,1),(0-255)
+   +QNWCFG: "used_algo",(0,1)
+   +QNWCFG: "nr5g_pref_freq_list",(0-32),<EARFCN_list>
+   +QNWCFG: "lte_pref_freq_list",(0-32),<EARFCN_list>
+   +QNWCFG: "ehplmn_config",(0-20),<ehplmn_list>
+   +QNWCFG: "nr5g_mimo",(0,1)
+   +QNWCFG: "ctrl_plane_dly",(0,1)
+   +QNWCFG: "rrc_state",(0,1)
+   +QNWCFG: "ssb_beam_id",(0,1)
+   +QNWCFG: "ul_data_path",(0,1)
+   +QNWCFG: "lte_ulMCS",(0,1)
+   +QNWCFG: "lte_mimo_layers"
+   +QNWCFG: "nr5g_mimo_layers",(0,1)
+   +QNWCFG: "wcdma_tx_power"
+   +QNWCFG: "lte_band_priority",<bands>
+   +QNWCFG: "nr5g_band_priority",<bands>
+   +QNWCFG: "cause7_map_cause14",(0,1)
+   +QNWCFG: "nr5g_ul_256qam",<enable_fr1>,<enable_fr2>
+   +QNWCFG: "msearch_bscan_sep",(0-500)
+   +QNWCFG: "thin_ui_cfg",(0,1)
+   +QNWCFG: "lte_pco",(0-2)
+   +QNWCFG: "freq_info",(0,1)
+   +QNWCFG: "msisdn",<mode>
+   +QNWCFG: "lte_fgi_fdd",<FGI_FDD>
+   +QNWCFG: "lte_fgi_tdd",<FGI_TDD>
+   +QNWCFG: "sysmode"
+   +QNWCFG: "nr5g_ulbw",(0,2)
+   +QNWCFG: "cops_auto_mode",(0,1)
+   +QNWCFG: "nitz_ons"
+   +QNWCFG: "clr_guti"
+   +QNWCFG: "nr5g_mimo_info"
+   +QNWCFG: "lte_mimo_info"
+   +QNWCFG: "3gpp_rel",<lte_rel>,<nr5g_rel>
+   +QNWCFG: "nr5g_pathloss",(0,1)
+   +QNWCFG: "center_arfcn_info"
+   ```
+ - If setting values with these commands seem to do nothing, try updating the modem firmware
 
 ## Resources
 Online guides/forums/manuals used:
