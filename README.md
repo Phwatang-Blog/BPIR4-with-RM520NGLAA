@@ -1,7 +1,7 @@
 # BPIR4-with-RM520NGLAA
  A guide to setup the Banana Pi BPI-R4 with a Quectel RM520N-GLAA modem to establish a connection to the internet
 
-The guide assumes a fresh install of OpenWRT (v24.10.0 at time of writing) on the BPI-R4 and that the RM520N-GLAA has been installed correctly.
+The guide assumes a fresh install of OpenWRT (v25.12.2 at time of writing) on the BPI-R4 and that the RM520N-GLAA has been installed correctly.
 
 ## End Goal
 By the end, we want to have a working cellular modem "box" whose main goal is to provide an internet connection to the main router of a home network.
@@ -12,24 +12,26 @@ Main steps:
 3. Install basic diagnostics and utilities to monitor the Bananapi and the modem
 4. Create a "management" port to adjust settings of the Bananapi from another network
 
+**Before starting, it is recommended to read ahead, note the packages you want to install and install them immediately whilst you still have a stable internet connection.**
+
 ## 1. Communicate With The Modem
 Substeps:
-1. If the modem is in **QMI mode**, install the following packages:
-    - kmod-usb-net-qmi-wwan 
-    - kmod-usb-serial-option
+1. If the modem is in **QMI mode**, install the following package:
     - uqmi
 
-   If the modem is in **MBIM mode**, install the following packages:
-    - kmod-usb-net-cdc-mbim 
-    - kmod-usb-serial-option
+   If the modem is in **MBIM mode**, install the following package:
     - umbim
    
-   Both sets of packages can be installed without interfering with each other. Feel free to install both sets
+   Both packages can be installed without interfering with each other. Feel free to install both sets
    if unsure which mode your modem is currently in.
+
 2. Install the following packages:
+    - kmod-usb-serial-option
     - modemmanager
     - luci-proto-modemmanager
+
 3. Perform reboot
+
 4. At this point, `ls /dev` should show various `ttyUSBx` and a `cdc-wdm0`.
     - Example succesful output:
       ```
@@ -50,35 +52,92 @@ Substeps:
 ## 2. Establish Cellular Connection as WAN
 Substeps:
 1. Delete the default `wan6` interface. IPv6 on the WAN will be handled by modemmanager.
+
 2. Modify the `wan` interface to use `ModemManager` as the protcol:
+
    ![](Step2_2.png)
+
 3. Adjust appropriate settings. Save and apply.
+
    ![](Step2_3.png)
+
 4. At this point, OpenWRT should be using the modem as its internet source.
 
    If not, possibly perform a reboot. Also check system logs to see if modemmanager ran into an issue. The utilities in the next step will help to diagnose and resolve issues.
 
 ## 3. Install Diagnostics and Utilities
 Substeps:
-1. Add [4IceG's repository](https://github.com/4IceG/Modem-extras) to opkg
+1. Add [4IceG's repository](https://github.com/4IceG/Modem-extras-apk) to opkg
+
 2. Update opkg and install the following packages:
     - luci-app-modemband
        - Allows easy adjustment for what cellular bands the modem should search for
-    - luci-app-3ginfo-lite
+    - luci-app-modemdata
        - Give basic information about the current cellular connection
-    - luci-app-atcommands
+    - luci-app-sms-manager
        - Allows for easy sending of AT commands to the modem
+    - luci-app-qfirehose
+       - Allows for easy firmware updates of the Quectel modem (via qfirehose)
    
    A new `Modem` tab will appear at the top of the Luci interface:
+
    ![](Step3_2.png)
+
 3. We will now configure the packages we've just installed to communicate with the modem. 
 
-   For each section under ```Modem```, goto ```Configuration``` and set (if present):
-    - Interface to `wan`
-    - Communication port to `/dev/ttyUSB2`
+   Under `Modem`, goto `Modemdata Status`. Upon initial setup, you should then automatically get pointed towards `Modem(s) configuration`.
 
-   Example configuration for 3g-info-lite:
    ![](Step3_3.png)
+
+   When clicking for "Show modems found", something like this should appear:
+   ```
+   [
+     {
+        "Manufacturer": "VIA Labs, Inc.",
+        "Product": "USB Billboard Device",
+        "Vendor": "2109",
+        "ProdID": "8822",
+        "Bus_speed": "480",
+        "Serial_Number": "0000000000000001"
+     },
+     {
+        "Manufacturer": "Quectel",
+        "Product": "RM520N-GL",
+        "Vendor": "2c7c",
+        "ProdID": "0801",
+        "Bus_speed": "5000",
+        "Serial_Number": "xxxxxxxx"
+     }
+   ]
+   ```
+
+4. Click `Add new modem settings` and add the RM520N-GL with appropriate settings:
+
+   ![](Step3_4.png)
+
+5. Under `Modem`, goto `SMS Manager`. On the `Configuration` tab, everything should be filled out. You only have to hit `Save & Apply`.
+
+6. At the moment sending AT commands will fail with `SMS Manager`. This is due to modemmanager refusing to send AT commands without being in debug mode. If you want AT commands to work, the following steps can be followed to boot modemmanager into debug automatically at boot:
+   1. Modify /etc/init.d/modemmanager so the debug flag is set:
+      ```
+      ....
+      . /usr/share/ModemManager/modemmanager.common
+      procd_open_instance "service"
+      procd_set_param command /usr/sbin/ModemManager-wrapper
+
+      # Enable debug mode for AT command usage   # Newline 1
+      procd_append_param command --debug         # Newline 2
+
+      procd_append_param command --log-level="$LOG_LEVEL"
+      [ "$LOG_LEVEL" = "DEBUG" ] && procd_append_param command --debug
+      [ "$LOG_LEVEL" = "DEBUG" ] && procd_append_param command --log-file "/var/log/mm.log"
+      ....
+      ```
+   2. The debug flag forces log level to be at DEBUG on boot so we have to adjust the log level after boot to not flood the logs. Therefore we add the following line(s) to `/etc/rc.local`
+      ```
+      # Ensure normal logging levels due to modemmanager starting in debug mode
+      mmcli -G INFO
+      ```
 
 ## 4. Creating a Management Port
 The management port will be used such that the Bananapi can be configured (ssh/http/... etc) from another network. Feel free to skip this step. If you don't know why it would be useful, then you probably don't need it.
@@ -86,32 +145,38 @@ The management port will be used such that the Bananapi can be configured (ssh/h
 There are many ways to do this. We will do this the simple way by setting up one of the Bananapi's ports to use DHCP and adjust the lan subnet range if necessary.
 
 Substeps:
-1. Select a (port) Device to use as the management interface (and remove it from `br-lan` if necessary). 
+1. Select a (port) Device to use as the management interface (and remove it from any current bridge devices if necessary). 
 
    We will use `Switch port: "wan"` going forward. (This was the port used for the wan interface before being replaced with ModemManager).
 
 2. Add a new firewall zone for the management port. Set both `input` and `output` to `accept`.
+
    ![](Step4_2.png)
 
 3. Add a new interface for this device and set the protcol to DHCP
+
    ![](Step4_3.png)
 
    Under `Advanced Settings` of the new interface, uncheck the following:
     - `Use default gateway`
     - `Use DNS server advertised by peer`
+   
+   Under `Firewall Settings` of the new interface, assign it to the recently created `management` firewall-zone.
+
 4. Check the subnet range of the management network the management interface will be plugged into.
 
    Adjust the `lan` interface to work in a different subnet. 
     - E.g if the management network operates in 192.168.1.1/24, adjust the `lan` interface to operate in 192.168.30.1/24
-    - Don't forget to access the Bananapi through its new ip address after the change
 
    Example adjustment of `lan` interface:
+
    ![](Step4_4.png)
 
-5. Add a new traffic rule to reject any traffic coming from `lan` zone going to `Device` zone on ports:
+5. Now log into the Bananapi through the management interface. Add a new traffic rule to reject any traffic coming from `lan` zone going to `Device` zone on ports:
     - 22 (ssh)
     - 80 (http)
     - 443 (https)
+
    ![](Step4_5.png)
 
 ## Other Things To Look Out For
@@ -237,9 +302,11 @@ Online guides/forums/manuals used:
     - Displaying cellular signal metrics
  - https://forums.quectel.com/uploads/short-url/x7O7XpZA1jJboG9xct7VxaeWLXx.pdf
     - RM520N-GL AT Command Manual
+ - https://forum.openwrt.org/t/flash-quectel-5g-4g-modem-m-2/219965/12
+    - qfirehose installation through apk
 
 Repos/packages:
- - https://github.com/4IceG/Modem-extras
+ - https://github.com/4IceG/Modem-extras-apk
     - 4IceG's repo
  - https://forums.quectel.com/t/rm502q-ae-band-preference-command/15630/8
     - Hidden band prioritisation commands
@@ -247,30 +314,25 @@ Repos/packages:
     - luci-app-cpu-status-mini
  - https://github.com/4IceG/luci-app-modemband
     - luci-app-modemband
- - https://github.com/4IceG/luci-app-3ginfo-lite
-    - luci-app-3ginfo
- - https://github.com/4IceG/luci-app-atcommands
-    - luci-app-atcommands
+ - https://github.com/4IceG/luci-app-modemdata
+    - luci-app-modemdata
+ - https://github.com/4IceG/luci-app-sms-manager
+    - luci-app-sms-manager
+ - https://github.com/4IceG/luci-app-qfirehose
+    - luci-app-qfirehose
 
 ## Updating Modem Firmware
-Firmware can be updated through Quectel's QFirehose utility.
+Use the following AT command to check the modem's firmware version:
+ - `AT+CGMR`
 
-If you have a USB to m.2 NGFF adapter, then you have the easy option of connecting the modem into the adapter and plugging the adapter into a proper computer.
+Assuming that the luci-app-qfirehose was installed as shown previously, then the steps to follow are:
+1. Download latest firmware zip from [4IceG's repo](https://github.com/4IceG/RM520N-GL)
+2. The qfirehose utility won't work properly while modemmanager is active. Go to `System` then `Startup` and stop `modemmanager`.
+3. Go to `Modem` then `Qfirehose`. Upload your zip file and set the communication port to `/dev/ttyUSB2`
 
-### Updating Directly From BPIR4
-I used the BPiR4 to perform the firmware update.
-
-At time of writing, the [opkg qfirehose](https://openwrt.pkgs.org/23.05/openwrt-packages-aarch64_cortex-a72/qfirehose_1.4.9-1_aarch64_cortex-a72.ipk.html) has not been updated to OpenWRT 24.x so most of this procedure has to be done through the terminal.
-
-The general procedure is to:
-1. Download a qfirehose zip onto the bpi
-2. Unzip and grant executible permissions with `chmod 775`
-3. Download latest firmware for RM520N
-4. Execute QFirehose and tell it to use the firmware downloaded in step 3
-
-See method 2 of this [guide](https://docs.gl-inet.com/router/en/4/tutorials/upgrade_quectel_module_software/) for more details.
-
-See [4IceG's repo](https://github.com/4IceG/RM520N-GL) for the latest firmware.
+   ![](modem_firmware_update.PNG)
+4. Finally hit `Flash Firmware`
+    - Note that you may get a failure with logs showing that unzip could not find the file. ssh in and manually perform the unzip in the qfirehoseupload directory. Then try flash the firmware again.
 
 ## A Sour Note on RM520N-GLAP
 If step 1 of the guide seems to not work, you may have ended up purchasing a **RM520N-GLAP** instead of the **RM520N-GLAA**.
@@ -307,10 +369,8 @@ Incase anyone finds this helpful, here were my findings:
  - Use the [GFriend Custom OpenWRT Image](https://github.com/mdsdtech/GFriendWRT/releases/tag/V060225-R4) as a tool for sending AT commands
    
    Preview:
-   ![](GFriend%20AT%20command.PNG)
 
- - Ensure to disable sim pin detection on the modem
-    - `AT+QSIMDET=0,0`
+   ![](GFriend%20AT%20command.PNG)
 
 From these I was able to get a `wwan0mbim0`, `wwan0qcdm0` and `wwan0qmi0` to appear in the output of `ls /dev/`.
 
@@ -352,6 +412,7 @@ Fri Apr 25 03:56:16 2025 daemon.notice netifd: Network device 'mhi_hwip0' link i
 ```
 
 However, ModemManager never seemed to receive any packets:
+
 ![](RM520N-GLAP_no_receive.jpg)
 
 Potentially useful resources:
