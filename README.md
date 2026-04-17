@@ -366,6 +366,11 @@ Incase anyone finds this helpful, here were my findings:
          Capabilities: [240] Data Link Feature <?>
          Kernel driver in use: mhi-pci-generic
    ```
+ - The following packages are needed for modemmanager to interface with the modem:
+    - kmod-mhi-net
+    - kmod-mhi-wwan-ctrl
+    - kmod-mhi-wwan-mbim
+
  - Use the [GFriend Custom OpenWRT Image](https://github.com/mdsdtech/GFriendWRT/releases/tag/V060225-R4) as a tool for sending AT commands
    
    Preview:
